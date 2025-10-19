@@ -19,7 +19,9 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "emoji-regex": "^10.6.0",
     "fast-csv": "^5.0.5",
-    "fs": "^0.0.1-security"
+    "fs": "^0.0.1-security",
+    "sentiment": "^5.0.2"
   }
 }

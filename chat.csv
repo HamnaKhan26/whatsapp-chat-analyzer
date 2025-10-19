@@ -1,6 +1,6 @@
-date,time,sender,message
-12/10/2024,9:45 AM,Hamna,Hey! How are you?
-12/10/2024,9:46 AM,Aisha,"I'm good, thanks 😊"
-12/10/2024,9:47 AM,Hamna,Working on a Node.js parser project
+date,time,sender,message,sentimentLabel,sentimentScore,emojis
+12/10/2024,9:45 AM,Hamna,Hey! How are you?,Neutral,0,
+12/10/2024,9:46 AM,Aisha,"I'm good, thanks 😊",Positive,8,😊
+12/10/2024,9:47 AM,Hamna,Working on a Node.js parser project,Neutral,0,
 12/10/2024,9:49 AM,Aisha,"That sounds fun!
-Let's catch up later."
+Let's catch up later.",Positive,4,
