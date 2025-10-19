@@ -1,0 +1,25 @@
+{
+  "name": "whatsapp-chat-analyzer",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/HamnaKhan26/whatsapp-chat-analyzer#readme",
+  "bugs": {
+    "url": "https://github.com/HamnaKhan26/whatsapp-chat-analyzer/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HamnaKhan26/whatsapp-chat-analyzer.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node parseChatToCSV.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "fast-csv": "^5.0.5",
+    "fs": "^0.0.1-security"
+  }
+}
