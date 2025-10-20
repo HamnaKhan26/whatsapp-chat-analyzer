@@ -19,6 +19,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "compromise": "^14.14.4",
     "emoji-regex": "^10.6.0",
     "fast-csv": "^5.0.5",
     "fs": "^0.0.1-security",

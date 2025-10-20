@@ -3,6 +3,7 @@ import readline from "readline";
 import { format as csvFormat } from "fast-csv";
 import Sentiment from "sentiment";
 import emojiRegex from "emoji-regex";
+import nlp from "compromise";
 
 const inputFile = "./sample-chat.txt";
 const outputFile = "./chat.csv";
@@ -42,7 +43,11 @@ rl.on("line", (line) => {
     const regex = emojiRegex();
     const emojis = [...message.matchAll(regex)].map(e => e[0]).join(" ");
 
-    currentMessage = { date, time, sender, message, sentimentLabel, sentimentScore, emojis };
+    // NLP: Keyword / topics
+    const doc = nlp(message);
+    const topics = doc.nouns().out('array').join(", "); // Extract nouns as topics
+
+    currentMessage = { date, time, sender, message, sentimentLabel, sentimentScore, emojis, topics };
   } else if (currentMessage) {
     currentMessage.message += "\n" + line.trim();
 
@@ -56,9 +61,14 @@ rl.on("line", (line) => {
     const regex = emojiRegex();
     const emojis = [...currentMessage.message.matchAll(regex)].map(e => e[0]).join(" ");
 
+    // NLP topics
+    const doc = nlp(currentMessage.message);
+    const topics = doc.nouns().out('array').join(", ");
+
     currentMessage.sentimentLabel = sentimentLabel;
     currentMessage.sentimentScore = sentimentScore;
     currentMessage.emojis = emojis;
+    currentMessage.topics = topics;
   }
 });
 
