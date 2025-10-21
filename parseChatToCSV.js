@@ -4,6 +4,9 @@ import { format as csvFormat } from "fast-csv";
 import Sentiment from "sentiment";
 import emojiRegex from "emoji-regex";
 import nlp from "compromise";
+import { generateSentimentTimeline } from "./helpers/sentimentTimeline.js";
+import { generateEmojiTimeline } from "./helpers/emojiTimeline.js";
+// import { generateTopicTimeline } from "./helpers/topicTimeline.js";
 
 // ---------- Config ----------
 const inputFile = "./sample-chat.txt";
@@ -63,6 +66,7 @@ function buildMessage({ date, time, sender, message }) {
 // ---------- Main Logic ----------
 let currentMessage = null;
 let messageCount = 0;
+let messages = [];
 
 rl.on("line", line => {
   const match = line.match(messageRegex);
@@ -71,6 +75,7 @@ rl.on("line", line => {
     // Save previous message if any
     if (currentMessage) {
       csvStream.write(currentMessage);
+      messages.push(currentMessage);
       messageCount++;
     }
 
@@ -84,12 +89,17 @@ rl.on("line", line => {
   }
 });
 
-rl.on("close", () => {
+rl.on("close", async () => {
   if (currentMessage) {
     csvStream.write(currentMessage);
+    messages.push(currentMessage);
     messageCount++;
   }
 
   csvStream.end();
   console.log(`✅ Parsed ${messageCount} messages into ${outputFile}`);
+
+  await generateSentimentTimeline(messages);
+  await generateEmojiTimeline(messages);
+  //await generateTopicTimeline(messages);
 });
