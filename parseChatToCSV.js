@@ -6,6 +6,7 @@ import emojiRegex from "emoji-regex";
 import nlp from "compromise";
 import { generateSentimentTimeline } from "./helpers/sentimentTimeline.js";
 import { generateEmojiTimeline } from "./helpers/emojiTimeline.js";
+import { generateTopicTimeline } from "./helpers/topicTimeline.js";
 
 // ---------- Config ----------
 const inputFile = "./sample-chat.txt";
@@ -100,4 +101,5 @@ rl.on("close", async () => {
 
   await generateSentimentTimeline(messages);
   await generateEmojiTimeline(messages);
+  await generateTopicTimeline(messages);
 });
