@@ -4,13 +4,16 @@ import { format as csvFormat } from "fast-csv";
 import Sentiment from "sentiment";
 import emojiRegex from "emoji-regex";
 import nlp from "compromise";
+import * as chrono from "chrono-node";
+import { createEvents } from "ics";
 import { generateSentimentTimeline } from "./helpers/sentimentTimeline.js";
 import { generateEmojiTimeline } from "./helpers/emojiTimeline.js";
 import { generateTopicTimeline } from "./helpers/topicTimeline.js";
 
-// ---------- Config ----------
+// ---------- Input/Output ----------
 const inputFile = "./sample-chat.txt";
 const outputFile = "./chat.csv";
+const calendarFile = "./events.ics";
 
 // Regex for standard WhatsApp message lines
 const messageRegex =
@@ -67,6 +70,7 @@ function buildMessage({ date, time, sender, message }) {
 let currentMessage = null;
 let messageCount = 0;
 let messages = [];
+let calendarEvents = [];
 
 rl.on("line", line => {
   const match = line.match(messageRegex);
@@ -81,6 +85,23 @@ rl.on("line", line => {
 
     // Parse message
     const [, date, time, sender, message] = match;
+
+    // Detect dates/times in message
+    const results = chrono.parse(message);
+    results.forEach(r => {
+      const start = r.start.date();
+      calendarEvents.push({
+        title: message,
+        start: [
+          start.getFullYear(),
+          start.getMonth() + 1,
+          start.getDate(),
+          start.getHours(),
+          start.getMinutes()
+        ]
+      });
+    });
+
     currentMessage = buildMessage({ date, time, sender, message });
   } else if (currentMessage) {
     // Continuation of previous message
@@ -102,4 +123,18 @@ rl.on("close", async () => {
   await generateSentimentTimeline(messages);
   await generateEmojiTimeline(messages);
   await generateTopicTimeline(messages);
+
+  // ---- GENERATE CALENDAR ----
+  if (calendarEvents.length) {
+    createEvents (calendarEvents, (error, value) => {
+      if (error) {
+        console.log(error);
+        return;
+      }
+      fs.writeFileSync(calendarFile, value);
+      console.log(`✅ Calendar events saved to ${calendarFile}`);
+    });
+  } else {
+    console.log("No date/time mentions found for calendar events.");
+  }
 });
