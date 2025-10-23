@@ -12,6 +12,8 @@ A Node.js tool that converts exported WhatsApp chats from `.txt` files into stru
 - Uses regex to extract date, time, sender, and message
 - Sentiment analysis over time
 - Emoji frequency detection
+- Calendar event generation — detects date/time mentions in chats and automatically generates .ics calendar files.
+- Topic discussion analysis — identifies and visualizes key discussion themes within the conversation.
 
 ---
 
