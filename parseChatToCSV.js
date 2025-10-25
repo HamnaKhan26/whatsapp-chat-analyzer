@@ -47,7 +47,7 @@ const extractTopics = (text) => {
 };
 
 /**
- * Build a structured, enriched message object.
+ * Build a structured message object.
  */
 const buildMessage = ({ date, time, sender, message }) => {
   const { sentimentLabel, sentimentScore } = analyzeSentiment(message);
@@ -76,7 +76,6 @@ const extractCalendarEvents = (message) => {
   });
 };
 
-// ---------- Stream Setup ----------
 const readStream = fs.createReadStream(inputFile, { encoding: "utf8" });
 const rl = readline.createInterface({ input: readStream });
 
@@ -84,7 +83,6 @@ const csvStream = csvFormat({ headers: true });
 const writable = fs.createWriteStream(outputFile);
 csvStream.pipe(writable);
 
-// ---------- Processing State ----------
 let currentMessage = null;
 let messages = [];
 let calendarEvents = [];
@@ -95,7 +93,6 @@ rl.on("line", (line) => {
   const match = line.match(messageRegex);
 
   if (match) {
-    // Save previous message before processing a new one
     if (currentMessage) {
       csvStream.write(currentMessage);
       messages.push(currentMessage);
@@ -104,10 +101,8 @@ rl.on("line", (line) => {
 
     const [, date, time, sender, messageText] = match;
 
-    // Detect and collect calendar events
     calendarEvents.push(...extractCalendarEvents(messageText));
 
-    // Build enriched message object
     currentMessage = buildMessage({ date, time, sender, message: messageText });
   } else if (currentMessage) {
     // Handle multi-line message continuation
@@ -117,7 +112,6 @@ rl.on("line", (line) => {
 });
 
 rl.on("close", async () => {
-  // Save last message
   if (currentMessage) {
     csvStream.write(currentMessage);
     messages.push(currentMessage);
