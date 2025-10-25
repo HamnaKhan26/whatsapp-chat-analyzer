@@ -10,16 +10,73 @@ import { generateSentimentTimeline } from "./helpers/sentimentTimeline.js";
 import { generateEmojiTimeline } from "./helpers/emojiTimeline.js";
 import { generateTopicTimeline } from "./helpers/topicTimeline.js";
 
-// ---------- Input/Output ----------
+// ---------- Configuration ----------
 const inputFile = "./sample-chat.txt";
 const outputFile = "./chat.csv";
 const calendarFile = "./events.ics";
 
-// Regex for standard WhatsApp message lines
+// ---------- Regex ----------
 const messageRegex =
   /^(\d{1,2}\/\d{1,2}\/\d{2,4}), (\d{1,2}:\d{2}\s?[APap][Mm]) - ([^:]+): (.*)$/;
 
-// ---------- Setup Streams ----------
+// ---------- Utilities ----------
+const sentiment = new Sentiment();
+const emojiPattern = emojiRegex();
+
+/**
+ * Analyze the sentiment of a message.
+ */
+const analyzeSentiment = (text) => {
+  const { score } = sentiment.analyze(text);
+  const label = score > 0 ? "Positive" : score < 0 ? "Negative" : "Neutral";
+  return { sentimentScore: score, sentimentLabel: label };
+};
+
+/**
+ * Extract emojis from a message.
+ */
+const extractEmojis = (text) =>
+  [...text.matchAll(emojiPattern)].map((e) => e[0]).join(" ");
+
+/**
+ * Extract topics (nouns) using NLP.
+ */
+const extractTopics = (text) => {
+  const doc = nlp(text);
+  return doc.nouns().out("array").join(", ");
+};
+
+/**
+ * Build a structured, enriched message object.
+ */
+const buildMessage = ({ date, time, sender, message }) => {
+  const { sentimentLabel, sentimentScore } = analyzeSentiment(message);
+  const emojis = extractEmojis(message);
+  const topics = extractTopics(message);
+  return { date, time, sender, message, sentimentLabel, sentimentScore, emojis, topics };
+};
+
+/**
+ * Detect and convert any date/time mentions in message into calendar events.
+ */
+const extractCalendarEvents = (message) => {
+  const results = chrono.parse(message);
+  return results.map((r) => {
+    const start = r.start.date();
+    return {
+      title: message,
+      start: [
+        start.getFullYear(),
+        start.getMonth() + 1,
+        start.getDate(),
+        start.getHours(),
+        start.getMinutes(),
+      ],
+    };
+  });
+};
+
+// ---------- Stream Setup ----------
 const readStream = fs.createReadStream(inputFile, { encoding: "utf8" });
 const rl = readline.createInterface({ input: readStream });
 
@@ -27,90 +84,40 @@ const csvStream = csvFormat({ headers: true });
 const writable = fs.createWriteStream(outputFile);
 csvStream.pipe(writable);
 
-// ---------- Helpers ----------
-const sentiment = new Sentiment();
-const emojiPattern = emojiRegex();
-
-/**
- * Analyze sentiment of a message.
- */
-function analyzeSentiment(text) {
-  const { score } = sentiment.analyze(text);
-  const label = score > 0 ? "Positive" : score < 0 ? "Negative" : "Neutral";
-  return { sentimentScore: score, sentimentLabel: label };
-}
-
-/**
- * Extract emojis from a message.
- */
-function extractEmojis(text) {
-  return [...text.matchAll(emojiPattern)].map(e => e[0]).join(" ");
-}
-
-/**
- * Extract topic keywords (nouns).
- */
-function extractTopics(text) {
-  const doc = nlp(text);
-  return doc.nouns().out("array").join(", ");
-}
-
-/**
- * Build enriched message object.
- */
-function buildMessage({ date, time, sender, message }) {
-  const { sentimentLabel, sentimentScore } = analyzeSentiment(message);
-  const emojis = extractEmojis(message);
-  const topics = extractTopics(message);
-
-  return { date, time, sender, message, sentimentLabel, sentimentScore, emojis, topics };
-}
-
-// ---------- Main Logic ----------
+// ---------- Processing State ----------
 let currentMessage = null;
-let messageCount = 0;
 let messages = [];
 let calendarEvents = [];
+let messageCount = 0;
 
-rl.on("line", line => {
+// ---------- Main Logic ----------
+rl.on("line", (line) => {
   const match = line.match(messageRegex);
 
   if (match) {
-    // Save previous message if any
+    // Save previous message before processing a new one
     if (currentMessage) {
       csvStream.write(currentMessage);
       messages.push(currentMessage);
       messageCount++;
     }
 
-    // Parse message
-    const [, date, time, sender, message] = match;
+    const [, date, time, sender, messageText] = match;
 
-    // Detect dates/times in message
-    const results = chrono.parse(message);
-    results.forEach(r => {
-      const start = r.start.date();
-      calendarEvents.push({
-        title: message,
-        start: [
-          start.getFullYear(),
-          start.getMonth() + 1,
-          start.getDate(),
-          start.getHours(),
-          start.getMinutes()
-        ]
-      });
-    });
+    // Detect and collect calendar events
+    calendarEvents.push(...extractCalendarEvents(messageText));
 
-    currentMessage = buildMessage({ date, time, sender, message });
+    // Build enriched message object
+    currentMessage = buildMessage({ date, time, sender, message: messageText });
   } else if (currentMessage) {
-    // Continuation of previous message
+    // Handle multi-line message continuation
     currentMessage.message += "\n" + line.trim();
     Object.assign(currentMessage, buildMessage(currentMessage));
   }
 });
 
 rl.on("close", async () => {
+  // Save last message
   if (currentMessage) {
     csvStream.write(currentMessage);
     messages.push(currentMessage);
@@ -118,21 +125,22 @@ rl.on("close", async () => {
   }
 
   csvStream.end();
-  console.log(`✅ Parsed ${messageCount} messages into ${outputFile}`);
+  console.log(`Parsed ${messageCount} messages → ${outputFile}`);
 
+  // Generate insights
   await generateSentimentTimeline(messages);
   await generateEmojiTimeline(messages);
   await generateTopicTimeline(messages);
 
-  // ---- GENERATE CALENDAR ----
-  if (calendarEvents.length) {
-    createEvents (calendarEvents, (error, value) => {
+  // Generate .ics calendar file if any events found
+  if (calendarEvents.length > 0) {
+    createEvents(calendarEvents, (error, value) => {
       if (error) {
-        console.log(error);
+        console.error("Calendar generation failed:", error);
         return;
       }
       fs.writeFileSync(calendarFile, value);
-      console.log(`✅ Calendar events saved to ${calendarFile}`);
+      console.log(`Calendar events saved → ${calendarFile}`);
     });
   } else {
     console.log("No date/time mentions found for calendar events.");
